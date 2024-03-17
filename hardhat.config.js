@@ -7,7 +7,7 @@ module.exports = {
   networks: {
     nebula: {
       url: '' +
-          'https://goerli.infura.io/v3/YOUR_API',
+          'https://mainnet.skalenodes.com/v1/green-giddy-denebola',
       accounts: ['YOUR_PRIVATE_KEY'],
     },
   },
