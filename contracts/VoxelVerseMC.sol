@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "./libraries/Base64.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import {Base64} from "./libraries/Base64.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract VoxelVerseMC is ERC721, Ownable {
     using Counters for Counters.Counter;
     using Strings for uint256;
 
     Counters.Counter private _tokenIds;
-    bool private _characterMinted = false;
 
     struct CharacterAttributes {
         string name;
@@ -24,67 +23,83 @@ contract VoxelVerseMC is ERC721, Ownable {
         uint daysSurvived;
         uint characterLevel;
         uint health;
+        uint heat;
     }
 
     mapping(uint256 => CharacterAttributes) public nftHolderAttributes;
     mapping(uint256 => bool) private _tokenMinted;
 
-    event CharacterNFTMinted(address sender, uint256 tokenId);
     event CharacterUpdated(uint256 tokenId, CharacterAttributes attributes);
-    event CharacterNFTMinted(address indexed sender, uint256 indexed tokenId, CharacterAttributes attributes);
-
+    event CharacterNFTMinted(address indexed recipient, uint256 indexed tokenId, CharacterAttributes attributes);
 
     constructor() ERC721("VoxelVerseMC", "VVMC") {}
 
-    function mintCharacterNFT(CharacterAttributes memory attributes) external {
-        uint256 newItemId = _tokenIds.current();
+    /**
+     * @dev Mints a new character NFT to the specified recipient address with predefined attributes.
+     * Can only be called by the contract owner.
+     * @param recipient Address to receive the newly minted NFT.
+     */
+    function mintCharacterNFT(address recipient) public onlyOwner {
+        CharacterAttributes memory attributes = CharacterAttributes({
+            name: "VoxelVerseMC",
+            imageURI: "https://harlequin-leading-egret-2.mypinata.cloud/ipfs/QmPF4M2eHtzLJX2mXi9GuG8L4uC26WkV1zzmnpNyVmZazk",
+            happiness: 50,
+            thirst: 100,
+            hunger: 100,
+            xp: 1,
+            daysSurvived: 1,
+            characterLevel: 1,
+            health: 100,
+            heat:50
+        });
 
+        uint256 newItemId = _tokenIds.current();
         require(!_tokenMinted[newItemId], "Character already minted");
 
-        _safeMint(msg.sender, newItemId);
+        _safeMint(recipient, newItemId);
         nftHolderAttributes[newItemId] = attributes;
         _tokenMinted[newItemId] = true;
 
         _tokenIds.increment();
 
-        emit CharacterNFTMinted(msg.sender, newItemId, attributes);
+        emit CharacterNFTMinted(recipient, newItemId, attributes);
     }
 
-    function updateCharacterAttributes(uint256 tokenId, CharacterAttributes memory attributes) public {
-        require(_isApprovedOrOwner(_msgSender(), tokenId), "Caller is not owner nor approved");
+    /**
+     * @dev Updates the attributes of a specific character NFT.
+     * Can only be called by the contract owner.
+     * @param tokenId The ID of the NFT whose attributes are to be updated.
+     * @param attributes The new attributes to assign to the NFT.
+     */
+    function updateCharacterAttributes(uint256 tokenId, CharacterAttributes memory attributes) public onlyOwner {
         nftHolderAttributes[tokenId] = attributes;
-
         emit CharacterUpdated(tokenId, attributes);
     }
 
+    /**
+     * @dev Returns the URI for a given token ID. The URI points to a JSON file that conforms to the "ERC721 Metadata JSON Schema".
+     * @param tokenId The ID of the token that the URI will be returned for.
+     * @return A string representing the URI to the metadata for the given token ID.
+     */
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
 
         CharacterAttributes memory charAttributes = nftHolderAttributes[tokenId];
 
-        // Start building the JSON string
-        string memory jsonPart1 = string(abi.encodePacked(
-            '{"name":"', charAttributes.name,
-            '","description":"This is your beta character in the VoxelVerseMC game!","image":"',
-            charAttributes.imageURI, '","attributes":['
-        ));
-
-        // Attributes part
-        string memory attributesJson = string(abi.encodePacked(
+        string memory json = string(abi.encodePacked(
+            '{"name":"', charAttributes.name, '","description":"This is your beta character in the VoxelVerseMC game!","image":"',
+            charAttributes.imageURI, '","attributes":[',
             '{"trait_type":"Happiness","value":"', charAttributes.happiness.toString(), '"},',
             '{"trait_type":"Health","value":"', charAttributes.health.toString(), '"},',
             '{"trait_type":"Hunger","value":"', charAttributes.hunger.toString(), '"},',
             '{"trait_type":"XP","value":"', charAttributes.xp.toString(), '"},',
             '{"trait_type":"Days","value":"', charAttributes.daysSurvived.toString(), '"},',
             '{"trait_type":"Level","value":"', charAttributes.characterLevel.toString(), '"},',
-            '{"trait_type":"Thirst","value":"', charAttributes.thirst.toString(), '"}'
-        ));
+            '{"trait_type":"Heat","value":"', charAttributes.heat.toString(), '"},',
+            '{"trait_type":"Thirst","value":"', charAttributes.thirst.toString(), '"}',
+            "]}"));
 
-        // Combine parts
-        string memory finalJson = string(abi.encodePacked(jsonPart1, attributesJson, "]}"));
-
-        // Base64 encode
-        string memory encodedJson = Base64.encode(bytes(finalJson));
+        string memory encodedJson = Base64.encode(bytes(json));
 
         return string(abi.encodePacked("data:application/json;base64,", encodedJson));
     }
