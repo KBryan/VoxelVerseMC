@@ -6,10 +6,14 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract VoxelVerseMC is ERC721, Ownable {
     using Counters for Counters.Counter;
     using Strings for uint256;
+
+    IERC20 public tokenAddress;
+    uint256 public rate = 10 * 10 ** 18;
 
     Counters.Counter private _tokenIds;
 
@@ -32,17 +36,20 @@ contract VoxelVerseMC is ERC721, Ownable {
     event CharacterUpdated(uint256 tokenId, CharacterAttributes attributes);
     event CharacterNFTMinted(address indexed recipient, uint256 indexed tokenId, CharacterAttributes attributes);
 
-    constructor() ERC721("VoxelVerseMC", "VVMC") {}
+    constructor(address _tokenAddress) ERC721("VoxelVerseMC", "VVMC") {
+         tokenAddress = IERC20(_tokenAddress);
+    }
 
     /**
      * @dev Mints a new character NFT to the specified recipient address with predefined attributes.
      * Can only be called by the contract owner.
-     * @param recipient Address to receive the newly minted NFT.
      */
-    function mintCharacterNFT(address recipient) public onlyOwner {
+    function mintCharacterNFT() public  {
+        tokenAddress.transferFrom(msg.sender, address(this), rate);
+
         CharacterAttributes memory attributes = CharacterAttributes({
             name: "VoxelVerseMC",
-            imageURI: "https://harlequin-leading-egret-2.mypinata.cloud/ipfs/QmPF4M2eHtzLJX2mXi9GuG8L4uC26WkV1zzmnpNyVmZazk",
+            imageURI: "https://harlequin-leading-egret-2.mypinata.cloud/ipfs/Qmd7NWbw2JdUqnJk7rg1w2X79L36dbrbQ5QbESVzHYt3SH",
             happiness: 50,
             thirst: 100,
             hunger: 100,
@@ -56,13 +63,13 @@ contract VoxelVerseMC is ERC721, Ownable {
         uint256 newItemId = _tokenIds.current();
         require(!_tokenMinted[newItemId], "Character already minted");
 
-        _safeMint(recipient, newItemId);
+        _safeMint(msg.sender, newItemId);
         nftHolderAttributes[newItemId] = attributes;
         _tokenMinted[newItemId] = true;
 
         _tokenIds.increment();
 
-        emit CharacterNFTMinted(recipient, newItemId, attributes);
+        emit CharacterNFTMinted(msg.sender, newItemId, attributes);
     }
 
     /**
@@ -102,5 +109,9 @@ contract VoxelVerseMC is ERC721, Ownable {
         string memory encodedJson = Base64.encode(bytes(json));
 
         return string(abi.encodePacked("data:application/json;base64,", encodedJson));
+    }
+
+    function withdrawToken() public onlyOwner {
+        tokenAddress.transfer(msg.sender, tokenAddress.balanceOf(address(this)));
     }
 }
