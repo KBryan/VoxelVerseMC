@@ -13,42 +13,48 @@ contract VoxelVerseMC is ERC721, Ownable {
     using Strings for uint256;
 
     IERC20 public tokenAddress;
-    uint256 public rate = 10 * 10 ** 18;
+    uint256 public rate;
 
     Counters.Counter private _tokenIds;
 
     struct CharacterAttributes {
         string name;
         string imageURI;
-        uint happiness;
-        uint thirst;
-        uint hunger;
-        uint xp;
-        uint daysSurvived;
-        uint characterLevel;
-        uint health;
-        uint heat;
+        uint256 happiness;
+        uint256 thirst;
+        uint256 hunger;
+        uint256 xp;
+        uint256 daysSurvived;
+        uint256 characterLevel;
+        uint256 health;
+        uint256 heat;
     }
 
     mapping(uint256 => CharacterAttributes) public nftHolderAttributes;
     mapping(uint256 => bool) private _tokenMinted;
+    mapping(address => bool) private _addressHasNFT;
 
     event CharacterUpdated(uint256 tokenId, CharacterAttributes attributes);
     event CharacterNFTMinted(address indexed recipient, uint256 indexed tokenId, CharacterAttributes attributes);
 
     constructor(address _tokenAddress) ERC721("VoxelVerseMC", "VVMC") {
-         tokenAddress = IERC20(_tokenAddress);
+        tokenAddress = IERC20(_tokenAddress);
+        rate = 10 * 10 ** 18; // Default rate, can be adjusted by the owner
     }
 
-    /**
-     * @dev Mints a new character NFT to the specified recipient address with predefined attributes.
-     * Can only be called by the contract owner.
-     */
-    function mintCharacterNFT() public  {
-        tokenAddress.transferFrom(msg.sender, address(this), rate);
+    function setRate(uint256 _rate) public onlyOwner {
+        rate = _rate;
+    }
+
+    function mintCharacterNFT() public {
+        require(!_addressHasNFT[msg.sender], "Address already owns an NFT");
+        require(tokenAddress.transferFrom(msg.sender, address(this), rate), "Payment transfer failed");
+
+        uint256 newItemId = _tokenIds.current();
+        require(!_tokenMinted[newItemId], "Character already minted");
 
         CharacterAttributes memory attributes = CharacterAttributes({
-            name: "VoxelVerseMC",
+            name: getMinterAddressAsString(),
             imageURI: "https://harlequin-leading-egret-2.mypinata.cloud/ipfs/Qmd7NWbw2JdUqnJk7rg1w2X79L36dbrbQ5QbESVzHYt3SH",
             happiness: 50,
             thirst: 100,
@@ -57,61 +63,74 @@ contract VoxelVerseMC is ERC721, Ownable {
             daysSurvived: 1,
             characterLevel: 1,
             health: 100,
-            heat:50
+            heat: 50
         });
-
-        uint256 newItemId = _tokenIds.current();
-        require(!_tokenMinted[newItemId], "Character already minted");
 
         _safeMint(msg.sender, newItemId);
         nftHolderAttributes[newItemId] = attributes;
         _tokenMinted[newItemId] = true;
+        _addressHasNFT[msg.sender] = true;
 
         _tokenIds.increment();
 
         emit CharacterNFTMinted(msg.sender, newItemId, attributes);
     }
 
+    function getMinterAddressAsString() public view returns (string memory) {
+        return addressToString(msg.sender);
+    }
+
     /**
-     * @dev Updates the attributes of a specific character NFT.
-     * Can only be called by the contract owner.
-     * @param tokenId The ID of the NFT whose attributes are to be updated.
-     * @param attributes The new attributes to assign to the NFT.
+     * @dev Converts an address to a string.
+     * @param _addr The address to convert.
+     * @return The address as a string.
      */
-    function updateCharacterAttributes(uint256 tokenId, CharacterAttributes memory attributes) public onlyOwner {
+    function addressToString(address _addr) public pure returns (string memory) {
+        bytes memory alphabet = "0123456789abcdef";
+        bytes20 value = bytes20(_addr);
+        bytes memory str = new bytes(42); // 2 characters for '0x', and 40 characters for the address
+        str[0] = '0';
+        str[1] = 'x';
+        for (uint256 i = 0; i < 20; i++) {
+            str[2 + i * 2] = alphabet[uint256(uint8(value[i] >> 4))];
+            str[3 + i * 2] = alphabet[uint256(uint8(value[i] & 0x0f))];
+        }
+        return string(str);
+    }
+
+    function updateCharacterAttributes(uint256 tokenId, CharacterAttributes calldata attributes) external onlyOwner {
+        require(_exists(tokenId), "Nonexistent token");
         nftHolderAttributes[tokenId] = attributes;
         emit CharacterUpdated(tokenId, attributes);
     }
 
-    /**
-     * @dev Returns the URI for a given token ID. The URI points to a JSON file that conforms to the "ERC721 Metadata JSON Schema".
-     * @param tokenId The ID of the token that the URI will be returned for.
-     * @return A string representing the URI to the metadata for the given token ID.
-     */
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
 
         CharacterAttributes memory charAttributes = nftHolderAttributes[tokenId];
-
-        string memory json = string(abi.encodePacked(
+        string memory json = Base64.encode(bytes(abi.encodePacked(
             '{"name":"', charAttributes.name, '","description":"This is your beta character in the VoxelVerseMC game!","image":"',
-            charAttributes.imageURI, '","attributes":[',
-            '{"trait_type":"Happiness","value":"', charAttributes.happiness.toString(), '"},',
-            '{"trait_type":"Health","value":"', charAttributes.health.toString(), '"},',
-            '{"trait_type":"Hunger","value":"', charAttributes.hunger.toString(), '"},',
-            '{"trait_type":"XP","value":"', charAttributes.xp.toString(), '"},',
-            '{"trait_type":"Days","value":"', charAttributes.daysSurvived.toString(), '"},',
-            '{"trait_type":"Level","value":"', charAttributes.characterLevel.toString(), '"},',
-            '{"trait_type":"Heat","value":"', charAttributes.heat.toString(), '"},',
-            '{"trait_type":"Thirst","value":"', charAttributes.thirst.toString(), '"}',
-            "]}"));
+            charAttributes.imageURI, '","attributes":', _formatAttributes(charAttributes), '}'
+        )));
 
-        string memory encodedJson = Base64.encode(bytes(json));
-
-        return string(abi.encodePacked("data:application/json;base64,", encodedJson));
+        return string(abi.encodePacked("data:application/json;base64,", json));
     }
 
-    function withdrawToken() public onlyOwner {
-        tokenAddress.transfer(msg.sender, tokenAddress.balanceOf(address(this)));
+    function _formatAttributes(CharacterAttributes memory charAttributes) private pure returns (string memory) {
+        return string(abi.encodePacked(
+            '[', _formatAttribute("Happiness", charAttributes.happiness),
+            ',', _formatAttribute("Health", charAttributes.health),
+            ',', _formatAttribute("Hunger", charAttributes.hunger),
+            ',', _formatAttribute("XP", charAttributes.xp),
+            ',', _formatAttribute("Days", charAttributes.daysSurvived),
+            ',', _formatAttribute("Level", charAttributes.characterLevel),
+            ',', _formatAttribute("Heat", charAttributes.heat),
+            ',', _formatAttribute("Thirst", charAttributes.thirst), ']'
+        ));
+    }
+
+    function _formatAttribute(string memory traitType, uint256 value) private pure returns (string memory) {
+        return string(abi.encodePacked('{"trait_type":"', traitType, '","value":', value.toString(), '}'));
     }
 }
+
