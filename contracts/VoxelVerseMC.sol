@@ -3,19 +3,17 @@ pragma solidity ^0.8.17;
 
 import {Base64} from "./libraries/Base64.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract VoxelVerseMC is ERC721, Ownable {
-    using Counters for Counters.Counter;
     using Strings for uint256;
 
     IERC20 public tokenAddress;
     uint256 public rate;
 
-    Counters.Counter private _tokenIds;
+    uint256 private tokenId;
 
     struct CharacterAttributes {
         string name;
@@ -33,11 +31,12 @@ contract VoxelVerseMC is ERC721, Ownable {
     mapping(uint256 => CharacterAttributes) public nftHolderAttributes;
     mapping(uint256 => bool) private _tokenMinted;
     mapping(address => bool) private _addressHasNFT;
+    mapping(uint256 => bool) public _tokenExists;
 
     event CharacterUpdated(uint256 tokenId, CharacterAttributes attributes);
     event CharacterNFTMinted(address indexed recipient, uint256 indexed tokenId, CharacterAttributes attributes);
 
-    constructor(address _tokenAddress) ERC721("VoxelVerseMC", "VVMC") {
+    constructor(address _tokenAddress) ERC721("VoxelVerseMC", "VVMC") Ownable(msg.sender) {
         tokenAddress = IERC20(_tokenAddress);
         rate = 10 * 10 ** 18; // Default rate, can be adjusted by the owner
     }
@@ -46,11 +45,15 @@ contract VoxelVerseMC is ERC721, Ownable {
         rate = _rate;
     }
 
+    function _exists(uint256 tokenId) internal view returns(bool) {
+        return _tokenExists[tokenId];
+    }
+
     function mintCharacterNFT() public {
         require(!_addressHasNFT[msg.sender], "Address already owns an NFT");
         require(tokenAddress.transferFrom(msg.sender, address(this), rate), "Payment transfer failed");
 
-        uint256 newItemId = _tokenIds.current();
+        uint256 newItemId = tokenId;
         require(!_tokenMinted[newItemId], "Character already minted");
 
         CharacterAttributes memory attributes = CharacterAttributes({
@@ -71,7 +74,7 @@ contract VoxelVerseMC is ERC721, Ownable {
         _tokenMinted[newItemId] = true;
         _addressHasNFT[msg.sender] = true;
 
-        _tokenIds.increment();
+        tokenId++;
 
         emit CharacterNFTMinted(msg.sender, newItemId, attributes);
     }
