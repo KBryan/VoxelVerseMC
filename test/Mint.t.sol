@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 // Mock ERC20 token for testing
 contract MockToken is ERC20 {
     constructor() ERC20("Mock Token", "MTK") {
-        _mint(msg.sender, 1000 * 10**18);
+        _mint(msg.sender, 1000 * 10 ** 18);
     }
 }
 
@@ -20,26 +20,26 @@ contract VoxelVerseMCTest is Test {
     function setUp() public {
         // Deploy mock token
         mockToken = new MockToken();
-        
+
         // Deploy VoxelVerseMC with mock token
         voxelVerse = new VoxelVerseMC(address(mockToken));
 
         // Setup user with tokens
         vm.startPrank(user);
-        mockToken.approve(address(voxelVerse), 100 * 10**18);
-        deal(address(mockToken), user, 100 * 10**18);
+        mockToken.approve(address(voxelVerse), 100 * 10 ** 18);
+        deal(address(mockToken), user, 100 * 10 ** 18);
         vm.stopPrank();
     }
 
     function test_MintCharacterNFT() public {
         vm.startPrank(user);
-        
+
         // Mint NFT
         voxelVerse.mintCharacterNFT();
-        
+
         // Check NFT ownership
         assertEq(voxelVerse.ownerOf(0), user);
-        
+
         // Check NFT attributes
         (
             string memory name,
@@ -53,7 +53,7 @@ contract VoxelVerseMCTest is Test {
             uint256 health,
             uint256 heat
         ) = voxelVerse.nftHolderAttributes(0);
-        
+
         // Verify initial values
         assertEq(happiness, 50);
         assertEq(thirst, 100);
@@ -63,7 +63,7 @@ contract VoxelVerseMCTest is Test {
         assertEq(characterLevel, 1);
         assertEq(health, 100);
         assertEq(heat, 50);
-        
+
         vm.stopPrank();
     }
 }
