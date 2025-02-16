@@ -45,7 +45,7 @@ contract VoxelVerseMC is ERC721, Ownable {
         rate = _rate;
     }
 
-    function _exists(uint256 tokenId) internal view returns(bool) {
+    function _exists(uint256 tokenId) internal view returns (bool) {
         return _tokenExists[tokenId];
     }
 
@@ -92,8 +92,8 @@ contract VoxelVerseMC is ERC721, Ownable {
         bytes memory alphabet = "0123456789abcdef";
         bytes20 value = bytes20(_addr);
         bytes memory str = new bytes(42); // 2 characters for '0x', and 40 characters for the address
-        str[0] = '0';
-        str[1] = 'x';
+        str[0] = "0";
+        str[1] = "x";
         for (uint256 i = 0; i < 20; i++) {
             str[2 + i * 2] = alphabet[uint256(uint8(value[i] >> 4))];
             str[3 + i * 2] = alphabet[uint256(uint8(value[i] & 0x0f))];
@@ -111,29 +111,48 @@ contract VoxelVerseMC is ERC721, Ownable {
         require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
 
         CharacterAttributes memory charAttributes = nftHolderAttributes[tokenId];
-        string memory json = Base64.encode(bytes(abi.encodePacked(
-            '{"name":"', charAttributes.name, '","description":"This is your beta character in the VoxelVerseMC game!","image":"',
-            charAttributes.imageURI, '","attributes":', _formatAttributes(charAttributes), '}'
-        )));
+        string memory json = Base64.encode(
+            bytes(
+                abi.encodePacked(
+                    '{"name":"',
+                    charAttributes.name,
+                    '","description":"This is your beta character in the VoxelVerseMC game!","image":"',
+                    charAttributes.imageURI,
+                    '","attributes":',
+                    _formatAttributes(charAttributes),
+                    "}"
+                )
+            )
+        );
 
         return string(abi.encodePacked("data:application/json;base64,", json));
     }
 
     function _formatAttributes(CharacterAttributes memory charAttributes) private pure returns (string memory) {
-        return string(abi.encodePacked(
-            '[', _formatAttribute("Happiness", charAttributes.happiness),
-            ',', _formatAttribute("Health", charAttributes.health),
-            ',', _formatAttribute("Hunger", charAttributes.hunger),
-            ',', _formatAttribute("XP", charAttributes.xp),
-            ',', _formatAttribute("Days", charAttributes.daysSurvived),
-            ',', _formatAttribute("Level", charAttributes.characterLevel),
-            ',', _formatAttribute("Heat", charAttributes.heat),
-            ',', _formatAttribute("Thirst", charAttributes.thirst), ']'
-        ));
+        return string(
+            abi.encodePacked(
+                "[",
+                _formatAttribute("Happiness", charAttributes.happiness),
+                ",",
+                _formatAttribute("Health", charAttributes.health),
+                ",",
+                _formatAttribute("Hunger", charAttributes.hunger),
+                ",",
+                _formatAttribute("XP", charAttributes.xp),
+                ",",
+                _formatAttribute("Days", charAttributes.daysSurvived),
+                ",",
+                _formatAttribute("Level", charAttributes.characterLevel),
+                ",",
+                _formatAttribute("Heat", charAttributes.heat),
+                ",",
+                _formatAttribute("Thirst", charAttributes.thirst),
+                "]"
+            )
+        );
     }
 
     function _formatAttribute(string memory traitType, uint256 value) private pure returns (string memory) {
-        return string(abi.encodePacked('{"trait_type":"', traitType, '","value":', value.toString(), '}'));
+        return string(abi.encodePacked('{"trait_type":"', traitType, '","value":', value.toString(), "}"));
     }
 }
-
