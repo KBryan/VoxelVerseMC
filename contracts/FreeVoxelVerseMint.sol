@@ -7,11 +7,8 @@ import {Strings} from "lib/openzeppelin-contracts/contracts/utils/Strings.sol";
 import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-contract VoxelVerseMC is ERC721, Ownable {
+contract FreeVoxelVerseMC is ERC721, Ownable {
     using Strings for uint256;
-
-    IERC20 public tokenAddress;
-    uint256 public rate;
 
     uint256 private tokenId;
 
@@ -36,18 +33,11 @@ contract VoxelVerseMC is ERC721, Ownable {
     event CharacterUpdated(uint256 tokenId, CharacterAttributes attributes);
     event CharacterNFTMinted(address indexed recipient, uint256 indexed tokenId, CharacterAttributes attributes);
 
-    constructor(address _tokenAddress) ERC721("VoxelVerseMC", "VVMC") Ownable() {
-        tokenAddress = IERC20(_tokenAddress);
-        rate = 10 * 10 ** 18; // Default rate, can be adjusted by the owner
-    }
-
-    function setRate(uint256 _rate) public onlyOwner {
-        rate = _rate;
+    constructor() ERC721("VoxelVerseMC", "VVMC") Ownable() {
     }
 
     function mintCharacterNFT() public {
         require(!_addressHasNFT[msg.sender], "Address already owns an NFT");
-        require(tokenAddress.transferFrom(msg.sender, address(this), rate), "Payment transfer failed");
 
         uint256 newItemId = tokenId;
         require(!_tokenMinted[newItemId], "Character already minted");

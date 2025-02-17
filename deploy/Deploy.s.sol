@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Script.sol";
-import "contracts/VoxelVerseMC.sol";
+import "contracts/FreeVoxelVerseMint.sol";
 
 contract DeployScript is Script {
     function setUp() public {}
@@ -12,7 +12,7 @@ contract DeployScript is Script {
         vm.startBroadcast();
 
         // Deploy the contract
-        VoxelVerseMC gameContract = new VoxelVerseMC();
+        FreeVoxelVerseMC gameContract = new FreeVoxelVerseMC();
         console.log("Contract deployed to:", address(gameContract));
 
         /* Minting functionality preserved for reference
